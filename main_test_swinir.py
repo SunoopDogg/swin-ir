@@ -1,4 +1,5 @@
 import argparse
+import csv
 import cv2
 import glob
 import numpy as np
@@ -56,6 +57,7 @@ def main():
     test_results['psnrb'] = []
     test_results['psnrb_y'] = []
     psnr, ssim, psnr_y, ssim_y, psnrb, psnrb_y = 0, 0, 0, 0, 0, 0
+    csv_rows = []
 
     for idx, path in enumerate(sorted(glob.glob(os.path.join(folder, '*')))):
         # read image
@@ -105,6 +107,9 @@ def main():
             print('Testing {:d} {:20s} - PSNR: {:.2f} dB; SSIM: {:.4f}; PSNRB: {:.2f} dB;'
                   'PSNR_Y: {:.2f} dB; SSIM_Y: {:.4f}; PSNRB_Y: {:.2f} dB.'.
                   format(idx, imgname, psnr, ssim, psnrb, psnr_y, ssim_y, psnrb_y))
+            csv_rows.append({'image': imgname, 'psnr': psnr, 'ssim': ssim,
+                             'psnr_y': psnr_y, 'ssim_y': ssim_y,
+                             'psnrb': psnrb, 'psnrb_y': psnrb_y})
         else:
             print('Testing {:d} {:20s}'.format(idx, imgname))
 
@@ -123,6 +128,22 @@ def main():
             if args.task in ['color_jpeg_car']:
                 ave_psnrb_y = sum(test_results['psnrb_y']) / len(test_results['psnrb_y'])
                 print('-- Average PSNRB_Y: {:.2f} dB'.format(ave_psnrb_y))
+
+    # save metrics to CSV
+    if csv_rows:
+        csv_path = os.path.join(save_dir, 'metrics.csv')
+        fieldnames = ['image', 'psnr', 'ssim', 'psnr_y', 'ssim_y', 'psnrb', 'psnrb_y']
+        with open(csv_path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(csv_rows)
+            writer.writerow({'image': 'AVERAGE',
+                             'psnr': ave_psnr, 'ssim': ave_ssim,
+                             'psnr_y': test_results['psnr_y'] and ave_psnr_y or '',
+                             'ssim_y': test_results['ssim_y'] and ave_ssim_y or '',
+                             'psnrb': test_results['psnrb'] and ave_psnrb or '',
+                             'psnrb_y': test_results['psnrb_y'] and ave_psnrb_y or ''})
+        print(f'-- Metrics saved to {csv_path}')
 
 
 def define_model(args):
